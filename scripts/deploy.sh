@@ -25,9 +25,19 @@ EOL
 
 echo "✅ Updated frontend config for deployment"
 
+# Kill any existing process using port 3001
+echo "🧹 Checking for existing process on port 3001..."
+if lsof -i :3001 &>/dev/null; then
+  echo "⚠️ Port 3001 is in use. Killing process..."
+  lsof -ti :3001 | xargs kill -9
+else
+  echo "✅ Port 3001 is free."
+fi
+
 # Start production server
 cd backend
 echo "🔧 Starting production server..."
 echo "📱 Access from any device at: http://$LOCAL_IP:3001"
 echo "⚠️  Make sure port 3001 is allowed in your firewall"
 NODE_ENV=production npm start
+
