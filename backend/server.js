@@ -17,6 +17,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Middleware
 app.use(cors());
+app.use(express.static(path.join(__dirname, "../frontend")));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -390,6 +391,5 @@ app.get('/api/filters', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Research Repository running on http://0.0.0.0:${PORT}`);
-  console.log(`Access from other devices at http://[YOUR_LOCAL_IP]:${PORT}`);
+  console.log(`Backend server running`);
 });

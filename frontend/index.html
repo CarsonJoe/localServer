@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Research Repository</title>
+    <script src="config.js"></script>
     <link rel="stylesheet" href="styles.css">
     <style>
         body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; }
@@ -70,7 +71,7 @@
     </div>
 
     <script>
-        const API_BASE = 'http://192.168.6.93';
+        const API_BASE = window.APP_CONFIG.API_BASE;
         document.addEventListener('DOMContentLoaded', loadStats);
 
         async function loadStats() {

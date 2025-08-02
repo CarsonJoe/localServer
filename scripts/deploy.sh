@@ -1,38 +1,33 @@
 #!/bin/bash
-set -e
 
-echo "🚀 Starting deployment..."
+echo "🚀 Deploying localServer for network access..."
 
-# Configuration
-APP_DIR="/opt/research-repo"
-SERVICE_NAME="research-repo"
+cd "$(dirname "$0")/.."
 
-# Stop the service
-echo "⏹️ Stopping service..."
-sudo systemctl stop $SERVICE_NAME 2>/dev/null || echo "Service not running"
+# Get local IP
+LOCAL_IP=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "Unable to detect IP")
 
-# Deploy new version
-echo "📁 Deploying files..."
-sudo rm -rf $APP_DIR
-sudo mkdir -p $APP_DIR
-sudo cp -r $GITHUB_WORKSPACE/* $APP_DIR/
+if [ "$LOCAL_IP" = "Unable to detect IP" ]; then
+    echo "❌ Could not detect local IP. Please find your IP manually:"
+    echo "   ip addr show | grep 'inet.*scope global'"
+    exit 1
+fi
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-cd $APP_DIR/backend
-sudo npm ci --production
+echo "📡 Detected local IP: $LOCAL_IP"
 
-# Set up environment
-echo "⚙️ Setting up environment..."
-echo "GEMINI_API_KEY=$GEMINI_API_KEY" | sudo tee $APP_DIR/backend/.env > /dev/null
-echo "PORT=3001" | sudo tee -a $APP_DIR/backend/.env > /dev/null
+# Update frontend config for deployment
+cat > frontend/config.js << EOL
+// Production frontend configuration
+window.APP_CONFIG = {
+  API_BASE: 'http://$LOCAL_IP:3001'
+};
+EOL
 
-# Set permissions
-sudo chown -R www-data:www-data $APP_DIR
+echo "✅ Updated frontend config for deployment"
 
-# Start service
-echo "▶️ Starting service..."
-sudo systemctl start $SERVICE_NAME
-sudo systemctl enable $SERVICE_NAME
-
-echo "✅ Deployment complete!"
+# Start production server
+cd backend
+echo "🔧 Starting production server..."
+echo "📱 Access from any device at: http://$LOCAL_IP:3001"
+echo "⚠️  Make sure port 3001 is allowed in your firewall"
+NODE_ENV=production npm start

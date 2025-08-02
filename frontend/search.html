@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search - Research Repository</title>
+    <script src="config.js"></script>
     <link rel="stylesheet" href="styles.css">
     <style>
         body { background-color: #f3f4f6; }
@@ -110,7 +111,7 @@
     </div>
 
     <script>
-        const API_BASE = 'http://192.168.6.93';
+        const API_BASE = window.APP_CONFIG.API_BASE;
         let content = [], searchResults = [], filters = {}, activeFilters = {};
 
         document.addEventListener('DOMContentLoaded', function() {
