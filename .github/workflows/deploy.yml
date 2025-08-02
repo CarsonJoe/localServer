@@ -43,18 +43,18 @@ jobs:
         chmod +x scripts/deploy.sh
         echo "Checking permissions after chmod:"
         ls -la scripts/deploy.sh
-    
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm install
+
     - name: Deploy application
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
         echo "Running deployment script..."
         ./scripts/deploy.sh
-    
-    - name: Install backend dependencies
-      run: |
-        cd backend
-        npm install
 
     - name: Wait for service to start
       run: sleep 15
