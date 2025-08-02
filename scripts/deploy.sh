@@ -1,21 +1,15 @@
 #!/bin/bash
 
-echo "🚀 Deploying localServer for network access..."
+echo "🚀 Configuring localServer for production deployment..."
 
 cd "$(dirname "$0")/.."
 
-# Get local IP
-LOCAL_IP=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "Unable to detect IP")
+# Get local IP  
+LOCAL_IP=$(hostname -I | awk '{print $1}' || ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "localhost")
 
-if [ "$LOCAL_IP" = "Unable to detect IP" ]; then
-    echo "❌ Could not detect local IP. Please find your IP manually:"
-    echo "   ip addr show | grep 'inet.*scope global'"
-    exit 1
-fi
+echo "📡 Using IP: $LOCAL_IP"
 
-echo "📡 Detected local IP: $LOCAL_IP"
-
-# Update frontend config for deployment
+# Update frontend config for production
 cat > frontend/config.js << EOL
 // Production frontend configuration
 window.APP_CONFIG = {
@@ -23,21 +17,19 @@ window.APP_CONFIG = {
 };
 EOL
 
-echo "✅ Updated frontend config for deployment"
+echo "✅ Updated frontend config for production"
 
-# Kill any existing process using port 3001
-echo "🧹 Checking for existing process on port 3001..."
-if lsof -i :3001 &>/dev/null; then
-  echo "⚠️ Port 3001 is in use. Killing process..."
-  lsof -ti :3001 | xargs kill -9
-else
-  echo "✅ Port 3001 is free."
+# Create .env if running in CI and GEMINI_API_KEY is set
+cd backend
+if [ -n "$GEMINI_API_KEY" ] && [ ! -f ".env" ]; then
+    echo "PORT=3001" > .env
+    echo "NODE_ENV=production" >> .env
+    echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
+    echo "✅ Created .env for production"
 fi
 
-# Start production server
-cd backend
-echo "🔧 Starting production server..."
-echo "📱 Access from any device at: http://$LOCAL_IP:3001"
-echo "⚠️  Make sure port 3001 is allowed in your firewall"
-NODE_ENV=production npm start
+echo "🚀 Starting server..."
+echo "📱 Will be accessible at: http://$LOCAL_IP:3001"
 
+# Start the server (dependencies already installed by CI)
+NODE_ENV=production npm start

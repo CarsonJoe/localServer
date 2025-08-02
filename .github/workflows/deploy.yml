@@ -1,17 +1,14 @@
 name: Deploy to Local Server
-
 on:
   push:
     branches: [ main ]
-
 jobs:
   deploy:
     runs-on: self-hosted
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+      
     - name: Debug - Show environment
       run: |
         echo "=== DEBUGGING INFO ==="
@@ -29,46 +26,92 @@ jobs:
         echo "First few lines of deploy.sh:"
         head -5 scripts/deploy.sh 2>/dev/null || echo "❌ Cannot read deploy.sh"
         echo "=== END DEBUG ==="
-    
+        
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: backend/package-lock.json
-    
+        
+    - name: Stop existing processes
+      run: |
+        echo "🛑 Stopping any existing processes on port 3001..."
+        # Kill processes using port 3001
+        sudo lsof -ti:3001 | xargs sudo kill -9 2>/dev/null || echo "No processes found on port 3001"
+        # Kill any existing node server processes
+        pkill -f "node server.js" 2>/dev/null || echo "No node server.js processes found"
+        # Wait a moment for processes to terminate
+        sleep 3
+        # Verify port is free
+        if lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1; then
+          echo "❌ Port 3001 still in use after cleanup attempt"
+          lsof -Pi :3001 -sTCP:LISTEN
+          exit 1
+        else
+          echo "✅ Port 3001 is now free"
+        fi
+        
     - name: Make script executable
       run: |
         echo "Making deploy.sh executable..."
         chmod +x scripts/deploy.sh
         echo "Checking permissions after chmod:"
         ls -la scripts/deploy.sh
-
+        
     - name: Install backend dependencies
       run: |
         cd backend
         npm install
-
+        
     - name: Deploy application
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
         echo "Running deployment script..."
         ./scripts/deploy.sh
-
+        
     - name: Wait for service to start
-      run: sleep 15
-    
+      run: |
+        echo "⏳ Waiting for service to start..."
+        sleep 10
+        # Check if process started
+        for i in {1..6}; do
+          if curl -f http://localhost:3001/api/sources >/dev/null 2>&1; then
+            echo "✅ Service is responding"
+            break
+          else
+            echo "⏳ Attempt $i/6: Service not ready yet, waiting 5 more seconds..."
+            sleep 5
+          fi
+          if [ $i -eq 6 ]; then
+            echo "❌ Service failed to start after 60 seconds"
+            exit 1
+          fi
+        done
+        
     - name: Health check
       run: |
-        curl -f http://localhost:3001/api/sources || (
+        echo "🏥 Running health check..."
+        response=$(curl -f http://localhost:3001/api/sources 2>/dev/null) || {
           echo "❌ Health check failed"
-          sudo systemctl status research-repo
-          sudo journalctl -u research-repo --no-pager -n 20
+          echo "Checking for running processes:"
+          ps aux | grep "node server.js" | grep -v grep || echo "No node processes found"
+          echo "Checking port usage:"
+          lsof -i :3001 || echo "No processes on port 3001"
+          echo "Checking recent logs:"
+          tail -50 /var/log/syslog | grep -i node || echo "No recent node logs found"
           exit 1
-        )
-    
+        }
+        echo "✅ Health check passed"
+        
     - name: Deployment success
       run: |
         echo "🎉 Deployment successful!"
-        echo "🌐 Access your app at: http://$(hostname -I | awk '{print $1}')"
+        local_ip=$(hostname -I | awk '{print $1}' | tr -d ' ')
+        echo "🌐 Access your app at: http://${local_ip}:3001"
+        echo "📱 API endpoint: http://${local_ip}:3001/api/sources"
+        echo "🔧 Server details:"
+        echo "   - Running on port 3001"
+        echo "   - Process ID: $(pgrep -f 'node server.js' | head -1)"
+        echo "   - Local access: http://localhost:3001"
