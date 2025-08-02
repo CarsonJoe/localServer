@@ -51,6 +51,11 @@ jobs:
         echo "Running deployment script..."
         ./scripts/deploy.sh
     
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm install
+
     - name: Wait for service to start
       run: sleep 15
     
