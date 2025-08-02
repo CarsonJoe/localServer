@@ -1,45 +1,69 @@
-name: Deploy to Local Server       # Name shown in GitHub Actions tab
+name: Deploy to Local Server
 
 on:
   push:
-    branches: [ main ]              # Trigger when pushing to main branch
+    branches: [ main ]
 
 jobs:
   deploy:
-    runs-on: self-hosted            # Run on YOUR server, not GitHub's
+    runs-on: self-hosted
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4     # Download your code to the server
+      uses: actions/checkout@v4
+    
+    - name: Debug - Show environment
+      run: |
+        echo "=== DEBUGGING INFO ==="
+        echo "Current directory: $(pwd)"
+        echo "GitHub Workspace: $GITHUB_WORKSPACE"
+        echo "Contents of current directory:"
+        ls -la
+        echo ""
+        echo "Contents of scripts directory:"
+        ls -la scripts/ 2>/dev/null || echo "❌ scripts directory not found"
+        echo ""
+        echo "File permissions for deploy.sh:"
+        ls -la scripts/deploy.sh 2>/dev/null || echo "❌ deploy.sh not found"
+        echo ""
+        echo "First few lines of deploy.sh:"
+        head -5 scripts/deploy.sh 2>/dev/null || echo "❌ Cannot read deploy.sh"
+        echo "=== END DEBUG ==="
     
     - name: Setup Node.js
-      uses: actions/setup-node@v4   # Make sure Node.js is available
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'                # Speed up by caching npm packages
+        cache: 'npm'
         cache-dependency-path: backend/package-lock.json
+    
+    - name: Make script executable
+      run: |
+        echo "Making deploy.sh executable..."
+        chmod +x scripts/deploy.sh
+        echo "Checking permissions after chmod:"
+        ls -la scripts/deploy.sh
     
     - name: Deploy application
       env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}  # Get API key from GitHub secrets
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
-        chmod +x ./scripts/deploy.sh   # Make script executable
-        ./scripts/deploy.sh            # RUN THE DEPLOYMENT SCRIPT!
+        echo "Running deployment script..."
+        ./scripts/deploy.sh
     
     - name: Wait for service to start
-      run: sleep 15                 # Give the app time to start
+      run: sleep 15
     
     - name: Health check
       run: |
-        curl -f http://localhost:3001/api/sources || (  # Test if app is working
+        curl -f http://localhost:3001/api/sources || (
           echo "❌ Health check failed"
-          sudo systemctl status research-repo           # Show error info
+          sudo systemctl status research-repo
           sudo journalctl -u research-repo --no-pager -n 20
-          exit 1                    # Fail the deployment if app isn't working
+          exit 1
         )
     
     - name: Deployment success
       run: |
         echo "🎉 Deployment successful!"
-        echo "🌐 Frontend: http://$(hostname -I | awk '{print $1}')"
-        echo "🔌 Backend: http://$(hostname -I | awk '{print $1}'):3001"
+        echo "🌐 Access your app at: http://$(hostname -I | awk '{print $1}')"
