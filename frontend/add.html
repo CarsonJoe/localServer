@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Content - Research Repository</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { background-color: #f3f4f6; }
+        .drop-zone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 48px 24px; text-align: center; background-color: #fafafa; transition: all 0.3s ease; cursor: pointer; }
+        .drop-zone:hover { border-color: #3b82f6; background-color: #f0f7ff; }
+        .drop-zone.dragover { border-color: #3b82f6; background-color: #dbeafe; transform: scale(1.02); }
+        .drop-zone-text { color: #6b7280; margin-bottom: 8px; font-size: 16px; }
+        .drop-zone-subtext { font-size: 14px; color: #9ca3af; }
+        .file-preview { margin-top: 16px; padding: 16px; background-color: #f0f7ff; border-radius: 8px; border: 1px solid #3b82f6; }
+        .file-preview-item { display: flex; align-items: center; gap: 16px; }
+        .file-preview-image { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+        .file-preview-info { flex: 1; }
+        .file-preview-name { font-weight: 600; color: #1f2937; margin-bottom: 4px; }
+        .file-preview-size { font-size: 14px; color: #6b7280; }
+        .file-remove { background: #ef4444; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .file-remove:hover { background: #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Add Research Content</h1>
+            <div>
+                <a href="index.html" class="nav-link">← Home</a>
+                <span style="margin: 0 12px;">|</span>
+                <a href="search.html" class="nav-link">Search</a>
+            </div>
+        </div>
+
+        <div id="successMessage" class="success-message hidden">✅ Content added successfully!</div>
+        <div id="errorMessage" class="error-message hidden"></div>
+
+        <div class="card">
+            <h2 class="section-title">📚 Add Source</h2>
+            <div class="form-row">
+                <input type="text" id="sourceTitle" placeholder="Source title (e.g., Stanford AI Index 2024)" required>
+                <input type="url" id="sourceUrl" placeholder="URL (optional)">
+                <button class="btn btn-secondary" onclick="addSource()">Add Source</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">📄 Add Content</h2>
+            
+            <div class="form-group">
+                <label for="contentSource">Select Source</label>
+                <select id="contentSource" required>
+                    <option value="">Select source...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="contentText">Text Content (optional)</label>
+                <textarea id="contentText" placeholder="Paste text content here..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Image Upload</label>
+                <div id="dropZone" class="drop-zone" onclick="document.getElementById('contentImage').click()">
+                    <div class="drop-zone-text">
+                        <span style="font-size: 32px;">📁</span><br>
+                        Drop an image, click to browse, or <strong>Ctrl+V to paste</strong>
+                    </div>
+                    <div class="drop-zone-subtext">
+                        Supports JPG, PNG, GIF files • Paste from clipboard • Max 10MB
+                    </div>
+                </div>
+                <input type="file" id="contentImage" accept="image/*" style="display: none;">
+                <div id="filePreview" class="file-preview hidden"></div>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="manualDescription">
+                    <label for="manualDescription">Write custom description (otherwise AI will generate one)</label>
+                </div>
+            </div>
+
+            <div id="customDescriptionGroup" class="form-group hidden">
+                <label for="customDescription">Custom Description</label>
+                <textarea id="customDescription" placeholder="Write your own description focusing on insights and significance..." style="min-height: 100px;"></textarea>
+            </div>
+
+            <div class="form-row">
+                <button class="btn btn-primary" onclick="addContent()" id="saveBtn">
+                    <span>💾</span>Save Content
+                </button>
+                <button class="btn btn-gray" onclick="resetForm()">
+                    <span>🔄</span>Reset Form
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001';
+        let sources = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchSources();
+            setupDragAndDrop();
+            setupClipboardPaste();
+            document.getElementById('manualDescription').addEventListener('change', function() {
+                document.getElementById('customDescriptionGroup').classList.toggle('hidden', !this.checked);
+            });
+        });
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showFilePreview(file) {
+            const filePreview = document.getElementById('filePreview');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                filePreview.innerHTML = `
+                    <div class="file-preview-item">
+                        <img src="${e.target.result}" alt="Preview" class="file-preview-image">
+                        <div class="file-preview-info">
+                            <div class="file-preview-name">${file.name}</div>
+                            <div class="file-preview-size">${formatFileSize(file.size)}</div>
+                        </div>
+                        <button class="file-remove" onclick="removeFile()" title="Remove file">×</button>
+                    </div>
+                `;
+                filePreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeFile() {
+            document.getElementById('contentImage').value = '';
+            const filePreview = document.getElementById('filePreview');
+            filePreview.classList.add('hidden');
+            filePreview.innerHTML = '';
+        }
+
+        function showMessage(type, message) {
+            const successEl = document.getElementById('successMessage');
+            const errorEl = document.getElementById('errorMessage');
+            successEl.classList.add('hidden');
+            errorEl.classList.add('hidden');
+            
+            if (type === 'success') {
+                successEl.textContent = `✅ ${message}`;
+                successEl.classList.remove('hidden');
+                setTimeout(() => successEl.classList.add('hidden'), 3000);
+            } else {
+                errorEl.textContent = `❌ ${message}`;
+                errorEl.classList.remove('hidden');
+                setTimeout(() => errorEl.classList.add('hidden'), 5000);
+            }
+        }
+
+        function setupClipboardPaste() {
+            document.addEventListener('paste', function(e) {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) handleClipboardImage(file);
+                        break;
+                    }
+                }
+            });
+        }
+
+        function handleClipboardImage(file) {
+            if (file.size > 10 * 1024 * 1024) {
+                showMessage('error', 'Image size must be less than 10MB');
+                return;
+            }
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const fileName = `pasted-image-${timestamp}.png`;
+            const namedFile = new File([file], fileName, { type: file.type });
+            const fileInput = document.getElementById('contentImage');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(namedFile);
+            fileInput.files = dataTransfer.files;
+            showFilePreview(namedFile);
+            showMessage('success', 'Image pasted from clipboard!');
+        }
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('contentImage');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+                document.body.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+            });
+
+            dropZone.addEventListener('drop', e => handleFiles(e.dataTransfer.files), false);
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) handleFiles(this.files);
+            });
+
+            function handleFiles(files) {
+                if (files.length === 0) return;
+                const file = files[0];
+                if (!file.type.startsWith('image/')) {
+                    showMessage('error', 'Please select an image file');
+                    return;
+                }
+                if (file.size > 10 * 1024 * 1024) {
+                    showMessage('error', 'File size must be less than 10MB');
+                    return;
+                }
+                showFilePreview(file);
+            }
+        }
+
+        async function fetchSources() {
+            try {
+                const response = await fetch(`${API_BASE}/api/sources`);
+                sources = await response.json();
+                const select = document.getElementById('contentSource');
+                select.innerHTML = '<option value="">Select source...</option>';
+                sources.forEach(source => {
+                    const option = document.createElement('option');
+                    option.value = source.id;
+                    option.textContent = source.title;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching sources:', error);
+                showMessage('error', 'Failed to load sources');
+            }
+        }
+
+        async function addSource() {
+            const title = document.getElementById('sourceTitle').value.trim();
+            const url = document.getElementById('sourceUrl').value.trim();
+            if (!title) {
+                showMessage('error', 'Source title is required');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/sources`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, url })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('sourceTitle').value = '';
+                    document.getElementById('sourceUrl').value = '';
+                    fetchSources();
+                    showMessage('success', 'Source added successfully!');
+                } else {
+                    showMessage('error', 'Failed to add source');
+                }
+            } catch (error) {
+                console.error('Error adding source:', error);
+                showMessage('error', 'Failed to add source');
+            }
+        }
+
+        async function addContent() {
+            const sourceId = document.getElementById('contentSource').value;
+            const contentText = document.getElementById('contentText').value.trim();
+            const manualDescription = document.getElementById('manualDescription').checked;
+            const description = document.getElementById('customDescription').value.trim();
+            const imageFile = document.getElementById('contentImage').files[0];
+            
+            if (!sourceId) {
+                showMessage('error', 'Please select a source');
+                return;
+            }
+            if (!contentText && !imageFile) {
+                showMessage('error', 'Please provide either text content or an image');
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.innerHTML = '<span>⏳</span> Saving...';
+            saveBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('source_id', sourceId);
+            formData.append('content_text', contentText);
+            formData.append('manual_description', manualDescription);
+            formData.append('description', description);
+            if (imageFile) formData.append('image', imageFile);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/content`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showMessage('success', 'Content saved successfully!');
+                    resetForm();
+                } else {
+                    const error = await response.json();
+                    showMessage('error', `Failed to save content: ${error.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error adding content:', error);
+                showMessage('error', 'Failed to save content - check if backend is running');
+            } finally {
+                saveBtn.innerHTML = '<span>💾</span> Save Content';
+                saveBtn.disabled = false;
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('contentSource').value = '';
+            document.getElementById('contentText').value = '';
+            document.getElementById('customDescription').value = '';
+            document.getElementById('manualDescription').checked = false;
+            document.getElementById('customDescriptionGroup').classList.add('hidden');
+            removeFile();
+        }
+    </script>
+</body>
+</html>

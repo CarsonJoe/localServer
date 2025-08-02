@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - Research Repository</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { background-color: #f3f4f6; }
+        .search-container { display: flex; gap: 16px; margin-bottom: 20px; }
+        .search-input { flex: 1; position: relative; }
+        .search-input input { width: 100%; padding: 12px 16px 12px 48px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 16px; }
+        .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 18px; }
+        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 16px; }
+        .filters select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+        .active-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+        .filter-tag { padding: 6px 12px; background-color: #dbeafe; color: #1e40af; font-size: 13px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
+        .filter-remove { cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; border-radius: 50%; background: rgba(30, 64, 175, 0.2); }
+        .filter-remove:hover { background: rgba(30, 64, 175, 0.3); }
+        .clear-filters { font-size: 13px; color: #2563eb; text-decoration: underline; background: none; border: none; cursor: pointer; padding: 4px 8px; }
+        .content-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); padding: 24px; margin-bottom: 20px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .content-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
+        .content-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .content-type { display: flex; align-items: center; gap: 12px; }
+        .content-type-icon { font-size: 20px; }
+        .content-source { font-size: 14px; font-weight: 600; color: #4b5563; }
+        .similarity-score { font-size: 12px; color: #9ca3af; background: #f3f4f6; padding: 4px 8px; border-radius: 12px; }
+        .content-image { width: 100%; max-width: 400px; margin: 0 auto 20px auto; border-radius: 8px; display: block; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        .content-text { background-color: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; color: #374151; border-left: 4px solid #e5e7eb; }
+        .content-description { color: #1f2937; margin-bottom: 20px; font-size: 15px; line-height: 1.6; }
+        .empty-state { text-align: center; padding: 64px 32px; color: #6b7280; }
+        .empty-state-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+        .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .results-title { font-size: 24px; font-weight: 600; color: #1f2937; }
+        .results-count { font-size: 14px; color: #6b7280; }
+        @media (max-width: 768px) { .filters { grid-template-columns: 1fr; } .search-container { flex-direction: column; } .results-header { flex-direction: column; align-items: flex-start; gap: 8px; } }
+    </style>
+</head>
+<body>
+    <div class="container container-wide">
+        <div class="header">
+            <h1>🔍 Search Research</h1>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">← Home</a>
+                <span>|</span>
+                <a href="add.html" class="btn btn-secondary btn-sm">
+                    <span>➕</span>Add Content
+                </a>
+            </div>
+        </div>
+
+        <div class="card card-sm">
+            <div class="search-container">
+                <div class="search-input">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchQuery" placeholder="Search your research..." onkeypress="handleSearchKeypress(event)">
+                </div>
+                <button class="btn btn-primary" onclick="search()" id="searchBtn">
+                    <span>🔍</span>Search
+                </button>
+            </div>
+
+            <div class="filters">
+                <select id="filterContentType" onchange="updateFilters()">
+                    <option value="">All Types</option>
+                    <option value="text">📄 Text</option>
+                    <option value="image">🖼️ Image</option>
+                </select>
+                <select id="filterSourceType" onchange="updateFilters()">
+                    <option value="">All Sources</option>
+                    <option value="primary">🎯 Primary</option>
+                    <option value="secondary">📚 Secondary</option>
+                    <option value="tertiary">📰 Tertiary</option>
+                </select>
+                <select id="filterCategory" onchange="updateFilters()">
+                    <option value="">All Categories</option>
+                </select>
+                <select id="filterOrganization" onchange="updateFilters()">
+                    <option value="">All Organizations</option>
+                </select>
+                <select id="filterIndustry" onchange="updateFilters()">
+                    <option value="">All Industries</option>
+                </select>
+            </div>
+
+            <div id="activeFilters" class="active-filters hidden">
+                <span style="font-size: 14px; color: #6b7280; font-weight: 500;">🔽 Active filters:</span>
+                <div id="filterTags"></div>
+                <button class="clear-filters" onclick="clearFilters()">Clear all</button>
+            </div>
+        </div>
+
+        <div class="results-header">
+            <h2 class="results-title" id="resultsTitle">All Content</h2>
+            <span class="results-count" id="resultsCount">Loading...</span>
+        </div>
+
+        <div id="loadingState" class="loading hidden">
+            <div class="spinner"></div>
+            Searching your research...
+        </div>
+
+        <div id="contentList"></div>
+        
+        <div id="emptyState" class="empty-state hidden">
+            <div class="empty-state-icon">📭</div>
+            <h3>No content found</h3>
+            <p>Try adjusting your search terms or filters, or <a href="add.html" class="nav-link">add some research content</a>!</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001';
+        let content = [], searchResults = [], filters = {}, activeFilters = {};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchContent();
+            fetchFilters();
+        });
+
+        async function fetchContent() {
+            try {
+                const response = await fetch(`${API_BASE}/api/content`);
+                content = await response.json();
+                searchResults = [...content];
+                renderContent();
+            } catch (error) {
+                console.error('Error fetching content:', error);
+                showError('Failed to load content - check if backend is running');
+            }
+        }
+
+        async function fetchFilters() {
+            try {
+                const response = await fetch(`${API_BASE}/api/filters`);
+                filters = await response.json();
+                updateFilterDropdowns();
+            } catch (error) {
+                console.error('Error fetching filters:', error);
+            }
+        }
+
+        async function search() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const searchBtn = document.getElementById('searchBtn');
+            const loadingState = document.getElementById('loadingState');
+            
+            if (!query) {
+                searchResults = [...content];
+                renderContent();
+                return;
+            }
+
+            searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
+            searchBtn.disabled = true;
+            loadingState.classList.remove('hidden');
+            document.getElementById('contentList').style.opacity = '0.5';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, filters: activeFilters })
+                });
+                
+                if (response.ok) {
+                    searchResults = await response.json();
+                    renderContent();
+                } else {
+                    showError('Search failed');
+                }
+            } catch (error) {
+                console.error('Error searching:', error);
+                showError('Search failed - check if backend is running');
+            } finally {
+                searchBtn.innerHTML = '<span>🔍</span> Search';
+                searchBtn.disabled = false;
+                loadingState.classList.add('hidden');
+                document.getElementById('contentList').style.opacity = '1';
+            }
+        }
+
+        function updateFilterDropdowns() {
+            updateDropdown('filterCategory', filters.content_categories || []);
+            updateDropdown('filterOrganization', filters.organizations || []);
+            updateDropdown('filterIndustry', filters.industries || []);
+        }
+
+        function updateDropdown(selectId, options) {
+            const select = document.getElementById(selectId);
+            const firstOption = select.firstElementChild.cloneNode(true);
+            select.innerHTML = '';
+            select.appendChild(firstOption);
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                select.appendChild(optionElement);
+            });
+        }
+
+        function updateFilters() {
+            activeFilters = {};
+            const contentType = document.getElementById('filterContentType').value;
+            const sourceType = document.getElementById('filterSourceType').value;
+            const category = document.getElementById('filterCategory').value;
+            const organization = document.getElementById('filterOrganization').value;
+            const industry = document.getElementById('filterIndustry').value;
+            
+            if (contentType) activeFilters.content_type = contentType;
+            if (sourceType) activeFilters.source_type = sourceType;
+            if (category) activeFilters.content_category = category;
+            if (organization) activeFilters.organization = organization;
+            if (industry) activeFilters.industry = industry;
+            
+            renderActiveFilters();
+            const query = document.getElementById('searchQuery').value.trim();
+            if (query) {
+                search();
+            } else {
+                applyLocalFilters();
+            }
+        }
+
+        function applyLocalFilters() {
+            searchResults = content.filter(item => {
+                return Object.entries(activeFilters).every(([key, value]) => {
+                    if (key === 'organization' || key === 'industry') {
+                        return item[key] && item[key].toLowerCase().includes(value.toLowerCase());
+                    }
+                    return item[key] === value;
+                });
+            });
+            renderContent();
+        }
+
+        function renderActiveFilters() {
+            const container = document.getElementById('activeFilters');
+            const tagsContainer = document.getElementById('filterTags');
+            
+            if (Object.keys(activeFilters).length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            tagsContainer.innerHTML = '';
+            
+            Object.entries(activeFilters).forEach(([key, value]) => {
+                const tag = document.createElement('span');
+                tag.className = 'filter-tag';
+                tag.innerHTML = `${formatFilterKey(key)}: ${value} <span class="filter-remove" onclick="removeFilter('${key}')">×</span>`;
+                tagsContainer.appendChild(tag);
+            });
+        }
+
+        function formatFilterKey(key) {
+            const keyMap = {
+                'content_type': 'Type',
+                'source_type': 'Source',
+                'content_category': 'Category',
+                'organization': 'Organization',
+                'industry': 'Industry'
+            };
+            return keyMap[key] || key;
+        }
+
+        function removeFilter(key) {
+            delete activeFilters[key];
+            const dropdownMap = {
+                'content_type': 'filterContentType',
+                'source_type': 'filterSourceType',
+                'content_category': 'filterCategory',
+                'organization': 'filterOrganization',
+                'industry': 'filterIndustry'
+            };
+            const dropdownId = dropdownMap[key];
+            if (dropdownId) document.getElementById(dropdownId).value = '';
+            renderActiveFilters();
+            updateFilters();
+        }
+
+        function clearFilters() {
+            activeFilters = {};
+            ['filterContentType', 'filterSourceType', 'filterCategory', 'filterOrganization', 'filterIndustry'].forEach(id => 
+                document.getElementById(id).value = ''
+            );
+            renderActiveFilters();
+            const query = document.getElementById('searchQuery').value.trim();
+            if (!query) {
+                searchResults = [...content];
+                renderContent();
+            } else {
+                search();
+            }
+        }
+
+        function renderContent() {
+            const container = document.getElementById('contentList');
+            const emptyState = document.getElementById('emptyState');
+            const resultsTitle = document.getElementById('resultsTitle');
+            const resultsCount = document.getElementById('resultsCount');
+            const query = document.getElementById('searchQuery').value.trim();
+            
+            resultsTitle.textContent = query ? 'Search Results' : 'All Content';
+            resultsCount.textContent = `${searchResults.length} items`;
+            
+            if (searchResults.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            container.innerHTML = searchResults.map(item => `
+                <div class="content-card">
+                    <div class="content-header">
+                        <div class="content-type">
+                            <span class="content-type-icon">${item.content_type === 'image' ? '🖼️' : '📄'}</span>
+                            <div>
+                                <div class="content-source">${item.source_title}</div>
+                                ${item.source_url ? `<a href="${item.source_url}" target="_blank" style="font-size: 12px; color: #3b82f6;">🔗 View Source</a>` : ''}
+                            </div>
+                        </div>
+                        ${item.similarity_score ? `<span class="similarity-score">${Math.round(item.similarity_score * 100)}% match</span>` : ''}
+                    </div>
+                    ${item.content_type === 'image' && item.image_path ? `<img src="${API_BASE}/uploads/${item.image_path}" alt="Content" class="content-image">` : ''}
+                    ${item.content_text ? `<div class="content-text">${item.content_text}</div>` : ''}
+                    <div class="content-description">${item.description}</div>
+                    <div class="tags">
+                        ${item.organization ? `<span class="tag tag-organization">🏢 ${item.organization}</span>` : ''}
+                        ${item.source_type ? `<span class="tag tag-source">📋 ${item.source_type}</span>` : ''}
+                        ${item.content_category ? `<span class="tag tag-category">📂 ${item.content_category}</span>` : ''}
+                        ${item.industry ? `<span class="tag tag-industry">🏭 ${item.industry}</span>` : ''}
+                        ${item.people && item.people.length > 0 ? item.people.map(person => `<span class="tag tag-person">👤 ${person}</span>`).join('') : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') search();
+        }
+
+        function showError(message) {
+            document.getElementById('contentList').innerHTML = `
+                <div style="background: #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; text-align: center;">
+                    ❌ ${message}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

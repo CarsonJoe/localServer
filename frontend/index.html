@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Repository</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; }
+        .hero { text-align: center; color: white; margin-bottom: 48px; }
+        .hero h1 { font-size: 48px; font-weight: bold; margin-bottom: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .hero p { font-size: 20px; opacity: 0.9; margin-bottom: 32px; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 32px; }
+        .feature-card { background: white; border-radius: 16px; padding: 32px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.1); transition: transform 0.3s ease, box-shadow 0.3s ease; cursor: pointer; }
+        .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.15); }
+        .card-icon { font-size: 48px; margin-bottom: 16px; }
+        .feature-card h2 { font-size: 24px; font-weight: 600; color: #1f2937; margin-bottom: 12px; }
+        .feature-card p { color: #6b7280; line-height: 1.6; margin-bottom: 20px; }
+        .stats { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; text-align: center; color: white; backdrop-filter: blur(10px); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 24px; }
+        .stat { text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; display: block; }
+        .stat-label { font-size: 14px; opacity: 0.8; }
+        @media (max-width: 768px) { .hero h1 { font-size: 36px; } .cards { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>Research Repository</h1>
+            <p>AI-powered research management with semantic search</p>
+        </div>
+
+        <div class="cards">
+            <div class="feature-card" onclick="window.location.href='add.html'">
+                <div class="card-icon">➕</div>
+                <h2>Add Content</h2>
+                <p>Upload images, paste text, or drag & drop research content. AI automatically extracts insights and tags.</p>
+                <div class="btn btn-secondary">Start Adding</div>
+            </div>
+
+            <div class="feature-card" onclick="window.location.href='search.html'">
+                <div class="card-icon">🔍</div>
+                <h2>Search & Browse</h2>
+                <p>Find your research using semantic search and smart filters. Discover connections across your knowledge base.</p>
+                <div class="btn btn-primary">Explore Research</div>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stats-grid">
+                <div class="stat">
+                    <span class="stat-number" id="totalSources">-</span>
+                    <span class="stat-label">Sources</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="totalContent">-</span>
+                    <span class="stat-label">Items</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="totalImages">-</span>
+                    <span class="stat-label">Images</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="totalText">-</span>
+                    <span class="stat-label">Text</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001';
+        document.addEventListener('DOMContentLoaded', loadStats);
+
+        async function loadStats() {
+            try {
+                const [sourcesResponse, contentResponse] = await Promise.all([
+                    fetch(`${API_BASE}/api/sources`),
+                    fetch(`${API_BASE}/api/content`)
+                ]);
+                const sources = await sourcesResponse.json();
+                const content = await contentResponse.json();
+                
+                document.getElementById('totalSources').textContent = sources.length;
+                document.getElementById('totalContent').textContent = content.length;
+                document.getElementById('totalImages').textContent = content.filter(item => item.content_type === 'image').length;
+                document.getElementById('totalText').textContent = content.filter(item => item.content_type === 'text').length;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                ['totalSources', 'totalContent', 'totalImages', 'totalText'].forEach(id => 
+                    document.getElementById(id).textContent = '0'
+                );
+            }
+        }
+    </script>
+</body>
+</html>
