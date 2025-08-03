@@ -38,7 +38,7 @@ jobs:
       run: |
         echo "🛑 Stopping any existing processes on port 3001..."
         # Kill processes using port 3001
-        sudo lsof -ti:3001 | xargs sudo kill -9 2>/dev/null || echo "No processes found on port 3001"
+        lsof -ti:3001 | xargs kill -9 2>/dev/null || echo "No processes found on port 3001"
         # Kill any existing node server processes
         pkill -f "node server.js" 2>/dev/null || echo "No node server.js processes found"
         # Wait a moment for processes to terminate

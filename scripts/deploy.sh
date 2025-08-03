@@ -32,4 +32,4 @@ echo "🚀 Starting server..."
 echo "📱 Will be accessible at: http://$LOCAL_IP:3001"
 
 # Start the server (dependencies already installed by CI)
-NODE_ENV=production npm start
+nohup npm start > server.log 2>&1 &
